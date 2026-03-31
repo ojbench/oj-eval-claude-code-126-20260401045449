@@ -40,9 +40,10 @@ class ACMOJClient:
         self.submission_log_file = '/workspace/submission_ids.log'
         
 
-    def _make_request(self, method: str, endpoint: str, data: Dict[str, Any] = None, 
+    def _make_request(self, method: str, endpoint: str, data: Dict[str, Any] = None,
                      params: Dict[str, Any] = None) -> Optional[Dict]:
         url = f"{self.api_base}{endpoint}"
+        response = None
         try:
             if method.upper() == "GET":
                 response = requests.get(url, headers=self.headers, params=params, timeout=10)
@@ -56,7 +57,7 @@ class ACMOJClient:
                 return {"status": "success", "message": "Operation successful"}
 
             response.raise_for_status()
-            
+
             if response.content:
                 return response.json()
             else:
@@ -64,7 +65,8 @@ class ACMOJClient:
 
         except requests.exceptions.RequestException as e:
             print(f"API Request failed: {e}")
-            if 'response' in locals() and response:
+            if response is not None:
+                print(f"Response status: {response.status_code}")
                 print(f"Response text: {response.text}")
             return None
 
@@ -83,8 +85,15 @@ class ACMOJClient:
         except Exception as e:
             print(f"⚠️ Warning: Failed to save submission ID: {e}")
 
-    def submit_git(self, problem_id: int, git_url: str) -> Optional[Dict]:
-        data = {"language": "git", "code": git_url}
+    def submit_git(self, problem_id: int, git_url: str, file_path: str = None, commit_hash: str = None) -> Optional[Dict]:
+        code_value = git_url
+        if commit_hash:
+            code_value = f"{git_url}@{commit_hash}"
+        if file_path:
+            code_value = f"{code_value}:{file_path}"
+
+        data = {"language": "git", "code": code_value}
+
         result = self._make_request("POST", f"/problem/{problem_id}/submit", data=data)
         if result and 'id' in result:
             self._save_submission_id(result['id'])
@@ -130,17 +139,9 @@ def main():
     client = ACMOJClient(args.token)
 
     if args.command == "submit":
-        try:
-            with open(args.code_file, 'r', encoding='utf-8') as f:
-                code_text = f.read()
-        except FileNotFoundError:
-            print(f"Error: Code file not found at {args.code_file}")
-            exit(1)
-        except Exception as e:
-            print(f"Error: Failed to read code file: {e}")
-            exit(1)
-
-        result = client.submit_code(args.problem_id, args.language, code_text)
+        # For this OJ system, we submit via git URL
+        git_url = "https://github.com/ojbench/oj-eval-claude-code-126-20260401045449"
+        result = client.submit_git(args.problem_id, git_url, None, None)
 
     elif args.command == "status":
         result = client.get_submission_detail(args.submission_id)
