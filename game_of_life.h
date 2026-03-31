@@ -149,87 +149,95 @@ inline void PrintGame() {
 
   std::ostringstream pattern;
 
-  for (int r = 0; r < row; r++) {
-    int c = 0;
-    while (c < col) {
-      bool is_alive = game_map[r][c];
-      int count = 1;
-
-      // Count consecutive cells of the same type
-      while (c + count < col && game_map[r][c + count] == is_alive) {
-        count++;
+  // Find last row with live cells
+  int last_row_with_live = -1;
+  for (int r = row - 1; r >= 0; r--) {
+    for (int c = 0; c < col; c++) {
+      if (game_map[r][c]) {
+        last_row_with_live = r;
+        break;
       }
+    }
+    if (last_row_with_live != -1) break;
+  }
 
-      // Output the run
-      if (is_alive) {
-        if (count == 1) {
-          pattern << 'o';
-        } else {
-          pattern << count << 'o';
+  for (int r = 0; r <= last_row_with_live; r++) {
+    // Find last live cell in this row
+    int last_live_col = -1;
+    for (int c = col - 1; c >= 0; c--) {
+      if (game_map[r][c]) {
+        last_live_col = c;
+        break;
+      }
+    }
+
+    // Process this row up to the last live cell
+    if (last_live_col >= 0) {
+      int c = 0;
+      while (c <= last_live_col) {
+        bool is_alive = game_map[r][c];
+        int count = 1;
+
+        // Count consecutive cells of the same type
+        while (c + count <= last_live_col && game_map[r][c + count] == is_alive) {
+          count++;
         }
-      } else {
-        // Only output dead cells if they're not at the end of the line
-        bool has_live_after = false;
-        for (int check = c + count; check < col; check++) {
-          if (game_map[r][check]) {
-            has_live_after = true;
-            break;
+
+        // Output the run
+        if (is_alive) {
+          if (count == 1) {
+            pattern << 'o';
+          } else {
+            pattern << count << 'o';
           }
-        }
-
-        if (has_live_after) {
+        } else {
           if (count == 1) {
             pattern << 'b';
           } else {
             pattern << count << 'b';
           }
         }
-      }
 
-      c += count;
+        c += count;
+      }
     }
 
     // Add line separator
-    if (r < row - 1) {
-      // Check if all remaining rows are empty
-      bool has_live_in_remaining = false;
-      for (int check_r = r + 1; check_r < row; check_r++) {
-        for (int check_c = 0; check_c < col; check_c++) {
-          if (game_map[check_r][check_c]) {
-            has_live_in_remaining = true;
-            break;
-          }
+    if (r < last_row_with_live) {
+      // Check if next row is empty
+      bool next_is_empty = true;
+      for (int c = 0; c < col; c++) {
+        if (game_map[r + 1][c]) {
+          next_is_empty = false;
+          break;
         }
-        if (has_live_in_remaining) break;
       }
 
-      if (has_live_in_remaining) {
+      if (next_is_empty) {
         // Count consecutive empty rows
-        int empty_rows = 0;
+        int empty_count = 0;
         int check_r = r + 1;
-        while (check_r < row) {
+        while (check_r <= last_row_with_live) {
           bool is_empty = true;
-          for (int check_c = 0; check_c < col; check_c++) {
-            if (game_map[check_r][check_c]) {
+          for (int c = 0; c < col; c++) {
+            if (game_map[check_r][c]) {
               is_empty = false;
               break;
             }
           }
           if (!is_empty) break;
-          empty_rows++;
+          empty_count++;
           check_r++;
         }
 
-        if (empty_rows > 0) {
-          if (empty_rows == 1) {
-            pattern << "$$";
-          } else {
-            pattern << (empty_rows + 1) << '$';
-          }
-          r = check_r - 1; // Skip empty rows
+        if (empty_count == 1) {
+          pattern << "2$";
         } else {
-          pattern << '$';
+          pattern << (empty_count + 1) << '$';
         }
+        r = check_r - 1; // Skip empty rows
+      } else {
+        pattern << '$';
       }
     }
   }
